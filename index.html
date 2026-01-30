@@ -2,18 +2,20 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Silindir ve Cubuk Oyunu</title>
+    <title>Büyük Silindir ve Cubuk Oyunu</title>
     <style>
         body { margin: 0; overflow: hidden; background: #2c3e50; font-family: sans-serif; }
         canvas { display: block; background: #87CEEB; }
-        #ui { position: absolute; top: 10px; width: 100%; text-align: center; pointer-events: none; color: white; }
+        #ui { position: absolute; top: 15px; width: 100%; text-align: center; pointer-events: none; color: white; }
+        h1 { font-size: 36px; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        p { font-size: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="ui">
     <h1 id="lvl">Seviye: 1</h1>
-    <p id="msg">Silindirlere doğru sırayla bas!</p>
+    <p id="msg">Sadece birine bas! Doğru sırayı bul.</p>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -33,10 +35,10 @@ let correctSeq = [];
 let playerIdx = 0;
 let isLocked = false;
 
-// Boyut Ayarları
-const cylW = 100; 
-const cylH = 80;  
-const poleW = 40; 
+// BÜYÜTÜLMÜŞ VE AYARLANMIŞ BOYUTLAR
+const cylW = 160;   
+const cylH = 120;   
+const poleW = 70;   
 
 function init() {
     cylinders = [];
@@ -44,38 +46,36 @@ function init() {
     isLocked = false;
     const adet = level + 2;
     
-    // Doğru sıralama
     correctSeq = Array.from({length: adet}, (_, i) => i);
     correctSeq.sort(() => Math.random() - 0.5);
 
-    const bosluk = canvas.width / (adet + 1);
+    // Silindirler arası boşluğu genişletmek için hesaplama
+    const totalWidth = canvas.width;
+    const spacing = totalWidth / (adet + 1);
+
     for (let i = 0; i < adet; i++) {
         cylinders.push({
             id: i,
-            x: bosluk * (i + 1) - cylW / 2,
-            // Silindirler artık biraz daha yukarıda (ekranın ortasına yakın) başlıyor
-            baseY: canvas.height - 300, 
+            x: spacing * (i + 1) - cylW / 2,
+            baseY: canvas.height - 350,
             up: false,
-            animY: canvas.height - 300
+            animY: canvas.height - 350
         });
     }
     document.getElementById('lvl').innerText = "Seviye: " + level;
-    document.getElementById('msg').innerText = "Doğru sırayı bul!";
+    document.getElementById('msg').innerText = "Sırayı bul ve it!";
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     cylinders.forEach(c => {
-        // Hareket animasyonu
-        // Seçilince daha da yukarı (baseY - 200) çıkar
-        let hedef = c.up ? c.baseY - 200 : c.baseY;
+        let hedef = c.up ? c.baseY - 250 : c.baseY;
         c.animY += (hedef - c.animY) * 0.1;
 
-        // 1. ÇUBUĞU ÇİZ (Tüm kısmı görünmesi için silindirden ekranın altına kadar)
         const poleX = c.x + (cylW / 2) - (poleW / 2);
-        const poleStartTop = c.animY + (cylH / 2); // Silindirin ortasından başlar
-        const poleHeight = canvas.height - poleStartTop; // Ekranın en altına kadar uzanır
+        const poleStartTop = c.animY + (cylH / 2); 
+        const poleHeight = canvas.height - poleStartTop;
 
         if (imgCubuk.complete && imgCubuk.naturalWidth > 0) {
             ctx.drawImage(imgCubuk, poleX, poleStartTop, poleW, poleHeight);
@@ -84,7 +84,6 @@ function draw() {
             ctx.fillRect(poleX, poleStartTop, poleW, poleHeight);
         }
 
-        // 2. SİLİNDİRİ ÇİZ
         if (imgSilindir.complete && imgSilindir.naturalWidth > 0) {
             ctx.drawImage(imgSilindir, c.x, c.animY, cylW, cylH);
         } else {
@@ -97,21 +96,27 @@ function draw() {
 }
 
 canvas.addEventListener('mousedown', (e) => {
+    // Eğer animasyon sürüyorsa veya işlem yapılıyorsa yeni tıklamayı reddet
     if (isLocked) return;
 
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
+    // Tıklanan silindiri bulmak için "found" kontrolü ekledik
+    let found = false;
+
     cylinders.forEach(c => {
-        if (mx > c.x && mx < c.x + cylW && my > c.animY && my < c.animY + cylH && !c.up) {
+        if (!found && mx > c.x && mx < c.x + cylW && my > c.animY && my < c.animY + cylH && !c.up) {
+            found = true; // Sadece bir silindir için işlem yap
+            
             if (c.id === correctSeq[playerIdx]) {
                 c.up = true;
                 playerIdx++;
                 
                 if (playerIdx === cylinders.length) {
                     isLocked = true;
-                    document.getElementById('msg').innerText = "TEBRİKLER!";
+                    document.getElementById('msg').innerText = "HARİKA!";
                     setTimeout(() => {
                         level++;
                         init();
@@ -120,10 +125,9 @@ canvas.addEventListener('mousedown', (e) => {
             } else {
                 isLocked = true;
                 c.up = true;
-                document.getElementById('msg').innerText = "YANLIŞ! TEKRAR DENE...";
+                document.getElementById('msg').innerText = "YANLIŞ SIRA!";
                 
                 setTimeout(() => {
-                    // Yanlışta aynı seviyeden devam etmek için sadece durumları sıfırla
                     cylinders.forEach(cyl => cyl.up = false);
                     playerIdx = 0;
                     isLocked = false;
@@ -146,3 +150,4 @@ draw();
 </script>
 </body>
 </html>
+
